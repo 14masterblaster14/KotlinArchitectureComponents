@@ -33,27 +33,42 @@ abstract class WordRoomDatabase : RoomDatabase() {
                         context.applicationContext,
                         WordRoomDatabase::class.java,
                         "Word_database"
-                ).addCallback(WordDatabaseCallback(scope))
+                )
+                        // Wipes and rebuilds instead of migrating if no Migration object.
+                        // Migration is not part of this codelab.
+                        .fallbackToDestructiveMigration()
+                        .addCallback(WordDatabaseCallback(scope))
                         .build()
 
                 INSTANCE = instance
                 return instance
             }
         }
-    }
 
-    private class WordDatabaseCallback(private val scope: CoroutineScope) : RoomDatabase.Callback() {
+        private class WordDatabaseCallback(private val scope: CoroutineScope) : RoomDatabase.Callback() {
 
-        override fun onOpen(db: SupportSQLiteDatabase) {
-            super.onOpen(db)
-            INSTANCE?.let { wordRoomDatabase ->
-                scope.launch(Dispatchers.IO) {
-                    populateDatabase(wordRoomDatabase.wordDao())
+            /**
+             * Override the onOpen method to populate the database.
+             * For this sample, we clear the database every time it is created or opened.
+             */
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                INSTANCE?.let { wordRoomDatabase ->
+                    scope.launch(Dispatchers.IO) {
+                        populateDatabase(wordRoomDatabase.wordDao())
+                    }
                 }
             }
         }
 
+        /**
+         * Populate the database in a new coroutine.
+         * If you want to start with more words, just add them.
+         */
         fun populateDatabase(wordDao: WordDao) {
+
+            // Start the app with a clean database every time.
+            // Not needed if you only populate on creation.
             wordDao.deleteAll()
 
             var word = Word("Hello")
